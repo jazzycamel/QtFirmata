@@ -1,6 +1,8 @@
 # QtFirmata
 A Qt5 implementation of a [Firmata](https://github.com/firmata/arduino) client library.
 
+More information on the protocol can be found [here](http://firmata.org/wiki/V2.3ProtocolDetails).
+
 ## Building the library
 To build the library:
 
