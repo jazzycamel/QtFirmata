@@ -3,7 +3,6 @@
 #include <QDebug>
 
 #include "qtfirmata.h"
-//#include "utils.h"
 
 QtFirmata::QtFirmata(QString serialPort, int baud) :
     port(serialPort), baud_rate(baud)
