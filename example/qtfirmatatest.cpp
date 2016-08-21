@@ -1,43 +1,56 @@
 #include <QTimer>
 #include <QDebug>
+#include <QCoreApplication>
 
 #include "qtfirmata.h"
 #include "qtfirmatatest.h"
 
-QtFirmataTest::QtFirmataTest(QObject *parent) : QObject(parent)
+QtFirmataTest::QtFirmataTest(QString port, QObject *parent)
+    : QObject(parent), port(port)
 {
+    qDebug() << "Starting...";
     d=i=a=s=a_ud=s_ud=0;
 }
 
 void QtFirmataTest::initialise(){
-    arduino=new QtFirmata("/dev/ttyUSB0");
+    arduino=new QtFirmata(port);
     connect(arduino, SIGNAL(deviceReady()), this, SLOT(start()));
 
     qDebug("Connecting...");
     if(arduino->connect()) qDebug("Successfully connected!");
-    else qDebug("Error connecting!");
+    else {
+        qDebug("Error connecting!");
+        qApp->quit();
+    }
 }
 
 void QtFirmataTest::start(){
     activeTimer= new QTimer(this);
     activeTimer->setInterval(1000);
-    activeTimer->setSingleShot(false);
+    activeTimer->setSingleShot(true);
     connect(activeTimer, SIGNAL(timeout()), this, SLOT(step()));
+
+    printTimer= new QTimer(this);
+    printTimer->setInterval(100);
+    printTimer->setSingleShot(true);
+    connect(printTimer, SIGNAL(timeout()), this, SLOT(printInputs()));
 
     qDebug("Initialising ports...");
 
     arduino->pinMode(13, QtFirmata::PINMODE_OUTPUT);
+
     arduino->pinMode(3, QtFirmata::PINMODE_PWM);
     arduino->pinMode(2, QtFirmata::PINMODE_SERVO);
     arduino->pinMode(8, QtFirmata::PINMODE_INPUT);
     arduino->pinMode(9, QtFirmata::PINMODE_INPUT);
     arduino->pinMode(14, QtFirmata::PINMODE_ANALOG);
-    arduino->pinMode(18, QtFirmata::PINMODE_I2C);
-    arduino->pinMode(19, QtFirmata::PINMODE_I2C);
 
-    QVector<int> readCmd(1,0);
-    arduino->I2CConfig(0,100);
-    arduino->I2CRequest(0x70, readCmd, QtFirmata::I2C_MODE_READ_ONCE);
+//    arduino->pinMode(18, QtFirmata::PINMODE_I2C);
+//    arduino->pinMode(19, QtFirmata::PINMODE_I2C);
+
+//    QVector<int> readCmd(2,0);
+//    arduino->I2CConfig(0,100);
+//    arduino->I2CRequest(0x70, readCmd, QtFirmata::I2C_MODE_READ_ONCE);
 
     qDebug("Successfully Initialised!");
     qDebug("Starting loop...");
@@ -78,11 +91,7 @@ void QtFirmataTest::step(){
 
     qDebug() << "Digital Out (13): " << d << ", Analog Out (3): " << a << ", Servo Out (2): " << s;
 
-    QTimer *wait=new QTimer(this);
-    wait->setInterval(100);
-    wait->setSingleShot(true);
-    connect(wait, SIGNAL(timeout()), this, SLOT(printInputs()));
-    wait->start();
+    printTimer->start();
 }
 
 void QtFirmataTest::printInputs(){
@@ -92,4 +101,6 @@ void QtFirmataTest::printInputs(){
 
     qDebug() << "Digital In (8): " << arduino->digitalRead(8)
              << ", Analog In (14, 15, 16, 17, 18, 19): " << analog;
+
+    activeTimer->start();
 }

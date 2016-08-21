@@ -6,7 +6,7 @@
 //#include "utils.h"
 
 QtFirmata::QtFirmata(QString serialPort, int baud) :
-    baud_rate(baud)
+    port(serialPort), baud_rate(baud)
 {
     parserBuffer=(uint8_t*) malloc(4096);
     connected=false;
@@ -26,8 +26,9 @@ QtFirmata::QtFirmata(QString serialPort, int baud) :
 }
 
 bool QtFirmata::connect(){
-    connected=serial->open(QIODevice::ReadWrite);
+    connected=serial->open(QIODevice::ReadWrite);        
     if(connected) reportFirmware();
+    else qDebug() << "Serial Port Error:" << serial->error() << serial->errorString();
     return connected;
 }
 
@@ -45,18 +46,18 @@ void QtFirmata::initialise(){
 }
 
 void QtFirmata::reportFirmware(){
-    char buffer[]={
+    uint8_t buffer[]={
         COMMAND_START_SYSEX,
         COMMAND_REPORT_FIRMWARE,
         COMMAND_END_SYSEX
     };
-    QByteArray s(buffer,3);
+    QByteArray s((char*)buffer,3);
     serial->write(s);
     serial->flush();
 }
 
 void QtFirmata::requestCapabilities(){
-    char buffer[]={
+    uint8_t buffer[]={
         COMMAND_START_SYSEX,
         COMMAND_ANALOG_MAPPING_QUERY,
         COMMAND_END_SYSEX,
@@ -64,84 +65,84 @@ void QtFirmata::requestCapabilities(){
         COMMAND_CAPABILITY_QUERY,
         COMMAND_END_SYSEX
     };
-    QByteArray s(buffer,6);
+    QByteArray s((char*)buffer,6);
     serial->write(s);
     serial->flush();
 }
 
 void QtFirmata::reportPins(){
-    for(int i=0; i<16; i++){
-        char buffer[]={ COMMAND_REPORT_ANALOG|i, 1 };
-        QByteArray s(buffer,2);
+    for(uint8_t i=0; i<16; i++){
+        uint8_t buffer[]={ (uint8_t)(COMMAND_REPORT_ANALOG|i), 1 };
+        QByteArray s((char*)buffer,2);
         serial->write(s);
         serial->flush();
     }
 
     for(int i=0; i<2; i++){
-        char buffer[]={ COMMAND_REPORT_DIGITAL|i, 1 };
-        QByteArray s(buffer,2);
+        uint8_t buffer[]={ (uint8_t)(COMMAND_REPORT_DIGITAL|i), 1 };
+        QByteArray s((char*)buffer,2);
         serial->write(s);
         serial->flush();
     }
 }
 
 void QtFirmata::requestInputs(){
-    for(int pin=0; pin<128; pin++){
-        char buffer[]={
+    for(uint8_t pin=0; pin<128; pin++){
+        uint8_t buffer[]={
             COMMAND_START_SYSEX,
             COMMAND_PIN_STATE_QUERY,
             pin,
             COMMAND_END_SYSEX
         };
 
-        QByteArray s(buffer,4);
+        QByteArray s((char*)buffer,4);
         serial->write(s);
         serial->flush();
     }
 }
 
-void QtFirmata::pinMode(int pin, int mode){
-    char buffer[]={
+void QtFirmata::pinMode(uint8_t pin, uint8_t mode){
+    uint8_t buffer[]={
         COMMAND_SET_PIN_MODE,
         pin,
         mode
     };
-    QByteArray s(buffer,3);
+    QByteArray s((char*)buffer,3);
     serial->write(s);
     serial->flush();
 }
 
-int QtFirmata::digitalRead(int pin){ return digitalInputData[pin]; }
+int QtFirmata::digitalRead(uint8_t pin){ return digitalInputData[pin]; }
 
-void QtFirmata::digitalWrite(int pin, int value){
+void QtFirmata::digitalWrite(uint8_t pin, uint8_t value){
     int portNumber=(pin>>3)&0x0F;
     if(value==0) digitalOutputData[portNumber]&=~(1<<(pin&0x07));
     else digitalOutputData[portNumber]|=(1<<(pin&0x07));
 
-    char buffer[]={
-        COMMAND_DIGITAL_MESSAGE|portNumber,
-        digitalOutputData[portNumber]&0x7F,
-        digitalOutputData[portNumber]>>7
+    uint8_t buffer[]={
+        (uint8_t)(COMMAND_DIGITAL_MESSAGE|portNumber),
+        (uint8_t)(digitalOutputData[portNumber]&0x7F),
+        (uint8_t)(digitalOutputData[portNumber]>>7)
     };
-    QByteArray s(buffer,3);
+    QByteArray s((char*)buffer,3);
     serial->write(s);
     serial->flush();
 }
 
-int QtFirmata::analogRead(int pin){ return analogInputData[pin-14]; }
+int QtFirmata::analogRead(uint8_t pin){ return analogInputData[pin-14]; }
 
-void QtFirmata::analogWrite(int pin, int value){
-    char buffer[]={
-        COMMAND_ANALOG_MESSAGE|(pin&0x07),
-        value&0x7F,
-        value>>7
+void QtFirmata::analogWrite(uint8_t pin, int value){
+    uint8_t buffer[]={
+        (uint8_t)(COMMAND_ANALOG_MESSAGE|(pin&0x07)),
+        (uint8_t)(value&0x7F),
+        (uint8_t)(value>>7)
     };
-    QByteArray s(buffer,3);
+    QByteArray s((char*)buffer,3);
     serial->write(s);
     serial->flush();
 }
 
-void QtFirmata::setServo(int pin, int value){ analogWrite(pin,value); }
+void QtFirmata::setServo(uint8_t pin, int value){ analogWrite(pin,value); }
 
 void QtFirmata::I2CRequest(int addr, QVector<int> data, int mode){
     int addr_mode=0x20, pos=0;
@@ -162,21 +163,21 @@ void QtFirmata::I2CRequest(int addr, QVector<int> data, int mode){
 
     buffer[pos++]=COMMAND_END_SYSEX;
 
-    QByteArray s(buffer,pos);
+    QByteArray s((char*)buffer,pos);
     serial->write(s);
     serial->flush();
 }
 
 void QtFirmata::I2CConfig(int pinState, int delay){
-    char buffer[]={
+    uint8_t buffer[]={
         COMMAND_START_SYSEX,
         COMMAND_I2C_CONFIG,
-        pinState,
-        delay&0xFF,
-        delay>>7,
+        (uint8_t)(pinState),
+        (uint8_t)(delay&0xFF),
+        (uint8_t)(delay>>7),
         COMMAND_END_SYSEX
     };
-    QByteArray s(buffer,6);
+    QByteArray s((char*)buffer,6);
     serial->write(s);
     serial->flush();
 }
